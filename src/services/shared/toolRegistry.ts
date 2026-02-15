@@ -237,6 +237,21 @@ export const TOOL_REGISTRY: ToolDefinition[] = [
     description: 'Codex CLI skills directory',
   },
 
+  // Abacus AI Desktop (DeepAgent)
+  {
+    id: 'abacus',
+    displayName: 'Abacus AI Desktop',
+    directoryPrefix: '.deepagent-desktop',
+    capabilities: { rules: true, agents: false, skills: false },
+    paths: {
+      rulesExport: '.deepagent-desktop/rules',
+      rulesFormat: 'directory',
+      rulesImport: ['**/.deepagent-desktop/rules/**/*.md'],
+      rulesImportPaths: ['.deepagent-desktop/rules'],
+    },
+    description: 'Abacus AI Desktop (DeepAgent) rules directory',
+  },
+
   // Aider
   {
     id: 'aider',
