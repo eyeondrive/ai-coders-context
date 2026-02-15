@@ -36,11 +36,30 @@ Before building, we reviewed the MCP server's architecture to understand what it
 
 3. **Built and verified.** `npm run build` succeeded cleanly. Confirmed `abacus` and `deepagent-desktop` appear in compiled output (`dist/services/shared/toolRegistry.js`).
 
-4. **Committed locally** as `feat: add Abacus AI Desktop (DeepAgent) to tool registry`. Not pushed — awaiting review.
+4. **Built and committed** as `feat: add Abacus AI Desktop (DeepAgent) to tool registry` (`944cf9e`).
+
+5. **Added these project notes** to `.context/docs/project-notes.md` and updated the docs README index with a "Fork-Specific" section. Committed as `docs: add fork-specific project notes to .context/docs` (`c672aaf`).
+
+6. **Pushed both commits** to `eyeondrive/ai-coders-context` on GitHub.
+
+### MCP Server Configuration — Where We Left Off
+
+We decided to configure the MCP server at the **user level** (`~/.claude.json`) so it's available across all projects, pointing to the local fork build rather than the npm package (since the fork has our Abacus AI additions).
+
+**Problem:** `~/.claude.json` is actively written to by the running Claude Code session, so edits from inside the session get clobbered. The `claude mcp add` CLI command also can't run from inside a session (nested session protection).
+
+**Next step — run this in a separate terminal:**
+
+```bash
+claude mcp add ai-context -- node /Users/powelld/Development/Workspace/github.com/eyeondrive/ai-coders-context/dist/index.js mcp
+```
+
+Then restart Claude Code so it picks up the new MCP server. After that, the 9 ai-context tools (explore, context, plan, agent, skill, sync, workflow-init, workflow-status, workflow-advance) should be available in every session.
 
 ### Open Items
 
-- Push to remote once David reviews the commit
-- Configure the MCP server in Claude Code's settings (add to `.claude/settings.json` or equivalent)
-- Test the actual sync workflow: create `.context/` content and export to all three tools
+- **Run the `claude mcp add` command** from a separate terminal (see above)
+- Test that the MCP server starts and the tools appear in Claude Code
+- Test the actual sync workflow: create `.context/` content and export to all three tools (Claude Code, Antigravity, Abacus AI)
 - Abacus AI agents/skills support — revisit when DeepAgent Desktop documents those features
+- Consider configuring the MCP server for Antigravity as well (`~/.gemini/mcp_config.json`)
