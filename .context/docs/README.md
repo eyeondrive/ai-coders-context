@@ -8,6 +8,9 @@ Welcome to the repository knowledge base. Start with the project overview, then 
 - [Testing Strategy](./testing-strategy.md)
 - [Tooling & Productivity Guide](./tooling.md)
 
+## Fork-Specific
+- [Project Notes](./project-notes.md) — Discoveries, decisions, and changes specific to the eyeondrive fork
+
 ## Repository Snapshot
 - `AGENTS.md/`
 - `CHANGELOG.md/`
