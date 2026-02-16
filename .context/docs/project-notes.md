@@ -42,24 +42,88 @@ Before building, we reviewed the MCP server's architecture to understand what it
 
 6. **Pushed both commits** to `eyeondrive/ai-coders-context` on GitHub.
 
-### MCP Server Configuration — Where We Left Off
+### MCP Server Configuration — Resolved
 
-We decided to configure the MCP server at the **user level** (`~/.claude.json`) so it's available across all projects, pointing to the local fork build rather than the npm package (since the fork has our Abacus AI additions).
+Configured at the workspace level in `eyeondrive/.mcp.json` (not `~/.claude.json`), pointing to the local fork build. This scopes the MCP to the eyeondrive workspace rather than polluting global config. Documented in the workspace CLAUDE.md under "AI Tool Ecosystem" so future sessions know where it lives and how to fix it if the MCP fails to connect.
 
-**Problem:** `~/.claude.json` is actively written to by the running Claude Code session, so edits from inside the session get clobbered. The `claude mcp add` CLI command also can't run from inside a session (nested session protection).
+---
 
-**Next step — run this in a separate terminal:**
+## 2026-02-15: Sync Workflow Test & Workspace Infrastructure
 
-```bash
-claude mcp add ai-context -- node /Users/powelld/Development/Workspace/github.com/eyeondrive/ai-coders-context/dist/index.js mcp
-```
+### Sync Workflow — Verified
 
-Then restart Claude Code so it picks up the new MCP server. After that, the 9 ai-context tools (explore, context, plan, agent, skill, sync, workflow-init, workflow-status, workflow-advance) should be available in every session.
+Tested the full export pipeline from `.context/` to all tool formats:
+
+1. **`export-rules --preset all --force`** — exported docs to 14 targets (CLAUDE.md, .cursorrules, .agent/rules/, .deepagent-desktop/rules/, etc.). All succeeded.
+2. **`sync-agents --preset all`** — synced 8 agent playbooks to 8 tool targets (64 files total) via symlinks back to `.context/agents/`. Zero failures.
+3. **`skill init`** — scaffolded 10 built-in skill templates (commit-message, pr-review, code-review, test-generation, documentation, refactoring, bug-investigation, feature-breakdown, api-design, security-audit).
+4. **`skill export --preset all`** — exported 10 skills to 4 targets (Claude Code, Antigravity, Gemini, Codex).
+
+All three of David's tools confirmed working:
+- **Claude Code** (`.claude/`) — CLAUDE.md + agents/ (symlinks) + skills/
+- **Antigravity** (`.agent/`) — rules/ + agents/ (symlinks) + workflows/
+- **DeepAgent** (`.deepagent-desktop/`) — rules/ only (as expected)
+
+### Non-Destructive Export Convention
+
+Discovered that `export-rules` overwrites CLAUDE.md entirely — destructive for hand-written project rules. Established a marker convention:
+
+- `<!-- GENERATED:AI-CONTEXT:START -->` / `<!-- GENERATED:AI-CONTEXT:END -->` wraps auto-generated content
+- Hand-written content stays outside the markers and survives re-export
+- For Antigravity/DeepAgent: workspace rules go in a separate `workspace-rules.md` alongside the generated `README.md` — no collision
+
+Applied this to ai-coders-context as the reference template.
+
+### Workspace-Level Changes
+
+- **Session Start picker** added to workspace CLAUDE.md — asks which project at session start, lists active projects only, offers new/one-off/archive options
+- **AGENT-ROLES.md instruction** made imperative — "you MUST read" instead of "read for the full breakdown"
+- **Archived dead projects** — Applescript Printer Refresh and mmi.us moved to `old-projects/`
+- **Course projects** (bookbot, Asteroids) kept but excluded from the picker — on hold
+
+### MCP Server — Confirmed Working
+
+The `.mcp.json` at workspace root was picked up by Claude Code. The ai-context MCP server connects and tools are available in sessions. No manual `claude mcp add` needed — the `.mcp.json` approach works.
 
 ### Open Items
 
-- **Run the `claude mcp add` command** from a separate terminal (see above)
-- Test that the MCP server starts and the tools appear in Claude Code
-- Test the actual sync workflow: create `.context/` content and export to all three tools (Claude Code, Antigravity, Abacus AI)
-- Abacus AI agents/skills support — revisit when DeepAgent Desktop documents those features
+- Skills are generic templates — `skill fill` would customize them to the project via LLM
+- Extra tool directories from `--preset all` export (`.cursor/`, `.windsurf/`, etc.) could be cleaned up — David only uses three tools
 - Consider configuring the MCP server for Antigravity as well (`~/.gemini/mcp_config.json`)
+- Abacus AI agents/skills support — revisit when DeepAgent Desktop documents those features
+- The generated content convention is manual — could eventually be built into ai-coders-context as a merge-aware export mode
+
+---
+
+## 2026-02-15: Fix venv Exclude Bug in Semantic Analysis
+
+### The Problem
+
+When using `fillSingle` on the mbti_sorter_v1 project, the semantic context builder was scanning `venv/` (Python virtual environment) and returning thousands of `site-packages/` paths instead of actual project code. Passing `exclude: ["venv"]` to `init` had no effect on `fillSingle`.
+
+### Root Causes (Three Bugs)
+
+1. **`DEFAULT_EXCLUDE_PATTERNS` missing Python venvs.** The default exclude list in `types.ts` covered `node_modules`, `__pycache__`, etc. but not `venv` or `.venv` — the standard Python virtual environment directories.
+
+2. **`SemanticContextBuilder` had its own shorter hardcoded exclude list.** `contextBuilder.ts` line 34 defined `exclude: ['node_modules', 'dist', 'build', '.git', 'coverage']` instead of using `DEFAULT_EXCLUDE_PATTERNS` from `types.ts`. So even after fixing the defaults, the context builder wouldn't use them.
+
+3. **User exclude patterns from `init` were never persisted.** `initializeContextTool.ts` accepted `exclude` and used it for the `FileMapper` during init, then threw it away. `fillScaffoldingTool.ts` created `new SemanticContextBuilder()` with zero options, so `fillSingle` always fell back to hardcoded defaults. There was no "chain of custody" between `init` and `fillSingle`.
+
+### Fixes Applied
+
+| File | Change |
+|------|--------|
+| `src/services/semantic/types.ts` | Added `'venv'` and `'.venv'` to `DEFAULT_EXCLUDE_PATTERNS` |
+| `src/services/semantic/contextBuilder.ts` | Replaced hardcoded exclude list with `DEFAULT_EXCLUDE_PATTERNS` import |
+| `src/services/ai/tools/initializeContextTool.ts` | Persists user `exclude` patterns to `.context/config.json` during init |
+| `src/services/ai/tools/fillScaffoldingTool.ts` | `getOrBuildContext()` loads `.context/config.json` and merges user excludes with defaults before creating `SemanticContextBuilder` |
+
+### Design Decisions
+
+- **Config file location:** `.context/config.json` — lives alongside the scaffolding it configures. Created only when user provides custom excludes.
+- **Merge, don't replace:** User excludes are merged with `DEFAULT_EXCLUDE_PATTERNS` in `getOrBuildContext()`, not passed as a replacement. This prevents users from accidentally removing default excludes like `node_modules`.
+- **Backwards compatible:** Projects without a `config.json` behave exactly as before — defaults only. The `venv`/`.venv` addition to defaults is the only behavioral change for existing users.
+
+### Testing
+
+Built cleanly (`npm run build`). MCP server needs restart to pick up the new code (it's a long-running stdio process). Verified all three fixes present in compiled `dist/` output.
