@@ -127,3 +127,26 @@ When using `fillSingle` on the mbti_sorter_v1 project, the semantic context buil
 ### Testing
 
 Built cleanly (`npm run build`). MCP server needs restart to pick up the new code (it's a long-running stdio process). Verified all three fixes present in compiled `dist/` output.
+
+---
+
+## 2026-02-15: Marker-Aware Merge for Export Rules
+
+### The Problem
+
+`exportRules` (both CLI and MCP) uses `fs.writeFile` to overwrite single-format targets like `CLAUDE.md` and `AGENTS.md`. This destroys any hand-written content in those files. The `<!-- GENERATED:AI-CONTEXT:START/END -->` marker convention was established as a workaround but the tool itself didn't honor it.
+
+### The Fix
+
+Modified `exportRulesService.ts` to detect and respect markers:
+
+1. **New file** — generated content is wrapped in markers automatically
+2. **Existing file with markers** — only the content between markers is replaced. Hand-written content outside markers is preserved. No `--force` needed (always safe).
+3. **Existing file without markers, no force** — skipped (existing behavior)
+4. **Existing file without markers, with force** — full overwrite, but content is now wrapped in markers so future exports will merge safely
+
+Added `wrapWithMarkers()` and `mergeWithMarkers()` private methods to `ExportRulesService`.
+
+### Also: Gitignore for Generated Tool Exports
+
+Added all tool-specific output directories to `.gitignore`. These are generated artifacts from `export-rules --preset all` and shouldn't be committed. Each user/fork generates their own.
