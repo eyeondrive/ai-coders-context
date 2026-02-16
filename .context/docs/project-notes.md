@@ -147,6 +147,8 @@ Modified `exportRulesService.ts` to detect and respect markers:
 
 Added `wrapWithMarkers()` and `mergeWithMarkers()` private methods to `ExportRulesService`.
 
-### Also: Gitignore for Generated Tool Exports
+### Also: Gitignore + Cleanup for Generated Tool Exports
 
 Added all tool-specific output directories to `.gitignore`. These are generated artifacts from `export-rules --preset all` and shouldn't be committed. Each user/fork generates their own.
+
+Removed `AGENTS.md` from git tracking (`git rm --cached`) — it's 100% generated content, now covered by `.gitignore`. Committed the updated `CLAUDE.md` which has the proper format: hand-written project rules at top, generated section inside `GENERATED:AI-CONTEXT` markers at bottom. This is the reference implementation of the marker-aware merge pattern.

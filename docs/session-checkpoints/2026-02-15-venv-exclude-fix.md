@@ -34,9 +34,20 @@ Made `exportRules` preserve hand-written content outside marker boundaries:
 - **Existing file without markers, no force** → skip
 - **Existing file without markers, with force** → overwrite with markers (future exports safe)
 
+## Commit 3: Cleanup Generated Artifacts
+
+Removed previously committed generated files that now belong in `.gitignore`:
+
+| File | Change |
+|------|--------|
+| `AGENTS.md` | Removed from git tracking (`git rm --cached`) — 100% generated content |
+| `CLAUDE.md` | Kept in git — has proper format: hand-written project rules at top, generated section inside `GENERATED:AI-CONTEXT` markers at bottom |
+| `.context/docs/project-notes.md` | Updated with cleanup notes |
+| `docs/session-checkpoints/...` | Updated this checkpoint |
+
 ## Build Status
 
-Both commits build cleanly. Not pushed to remote yet.
+All three commits build cleanly. Not pushed to remote yet.
 
 ## Upstream Contribution Candidates
 
